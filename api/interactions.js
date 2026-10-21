@@ -6,6 +6,7 @@ import { waitUntil } from '@vercel/functions';
 import { autocomplete, handleCommand } from '../lib/handlers.js';
 import { UserError } from '../lib/errors.js';
 import { editOriginal } from '../lib/discord.js';
+import { lang, t } from '../lib/i18n.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -15,15 +16,16 @@ const EPHEMERAL = 64;
 const json = (body) => Response.json(body);
 
 async function runCommand(interaction) {
+  const L = lang(interaction.locale);
   let reply;
   try {
     reply = await handleCommand(interaction);
   } catch (e) {
     if (e instanceof UserError) {
-      reply = { content: `❌ ${e.message}` };
+      reply = { content: `❌ ${t(L, e.key, e.vars)}` };
     } else {
       console.error(e);
-      reply = { content: '❌ Ocurrió un error inesperado. Inténtalo de nuevo en un momento.' };
+      reply = { content: t(L, 'unexpected') };
     }
   }
   // Las respuestas a comandos nunca notifican a nadie.
@@ -60,14 +62,14 @@ export async function POST(request) {
 
   if (interaction.type === COMMAND) {
     if (!interaction.guild_id) {
-      return json({ type: 4, data: { content: 'Kon Planner solo funciona dentro de un servidor.', flags: EPHEMERAL } });
+      return json({ type: 4, data: { content: t(lang(interaction.locale), 'guild_only'), flags: EPHEMERAL } });
     }
     // Discord exige respuesta en 3 segundos: respondemos "pensando…" y terminamos el trabajo en segundo plano.
     waitUntil(runCommand(interaction));
     return json({ type: 5, data: { flags: EPHEMERAL } });
   }
 
-  return json({ type: 4, data: { content: 'Interacción no soportada.', flags: EPHEMERAL } });
+  return json({ type: 4, data: { content: t(lang(interaction.locale), 'unsupported'), flags: EPHEMERAL } });
 }
 
 export function GET() {
