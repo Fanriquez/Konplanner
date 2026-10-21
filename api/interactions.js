@@ -7,6 +7,8 @@ import { autocomplete, handleCommand } from '../lib/handlers.js';
 import { UserError } from '../lib/errors.js';
 import { editOriginal } from '../lib/discord.js';
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 const PING = 1, COMMAND = 2, AUTOCOMPLETE = 4;
 const EPHEMERAL = 64;
 
@@ -25,9 +27,17 @@ async function runCommand(interaction) {
     }
   }
   // Las respuestas a comandos nunca notifican a nadie.
-  await editOriginal(interaction.token, { ...reply, allowed_mentions: { parse: [] } }).catch((e) =>
-    console.error('No se pudo responder al comando:', e.message),
-  );
+  // Si respondemos antes de que Discord registre el "pensando…", devuelve 404 (Unknown Webhook): esperamos y reintentamos.
+  const payload = { ...reply, allowed_mentions: { parse: [] } };
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await editOriginal(interaction.token, payload, interaction.application_id);
+      return;
+    } catch (e) {
+      if (e.status !== 404 || attempt >= 5) return console.error('No se pudo responder al comando:', e.message);
+      await sleep(400 * attempt);
+    }
+  }
 }
 
 export async function POST(request) {
