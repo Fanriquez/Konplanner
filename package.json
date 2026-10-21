@@ -1,0 +1,19 @@
+{
+  "name": "kon-planner",
+  "version": "1.0.0",
+  "description": "Kon Planner: bot de Discord para planificar eventos y alarmas con menciones",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "register": "node --env-file=.env scripts/register.js"
+  },
+  "dependencies": {
+    "@vercel/functions": "^3.1.0",
+    "discord-interactions": "^4.4.0",
+    "luxon": "^3.7.2",
+    "postgres": "^3.4.9"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
