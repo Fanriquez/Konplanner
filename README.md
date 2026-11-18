@@ -10,7 +10,10 @@ Funciona 100% gratis con **Vercel + Supabase + cron-job.org**, sin tener tu PC e
 
 | Función | Detalle |
 |---|---|
-| Eventos | Con nombre, descripción y fecha/hora de inicio (opcional) |
+| Plantillas | Guarda cada tipo de evento (ej. Trap) con sus avisos y prográmalo con un solo comando, varios horarios a la vez |
+| Repeticiones automáticas | Una plantilla puede repetirse sola (semanal, cada N días, bloques); el bot crea los horarios de los próximos 8 días |
+| Detección de patrones | Con el historial, el bot descubre cada cuánto se repite un evento y sugiere el comando para automatizarlo |
+| Eventos | Con nombre, descripción y fecha/hora de inicio (opcional). **Sin hora**: solo con fecha (ej. Shutdown, "recuerden registrarse") aparecen ese día con 📌, con una alarma opcional a una hora |
 | Alarmas por evento | Todas las que quieras, cada una con su canal, mensaje y menciones |
 | Alarmas relativas | "1 día antes", "2h antes", "al inicio". Si mueves el evento, se mueven solas |
 | Alarmas con fecha exacta | Cualquier día y hora |
@@ -18,7 +21,8 @@ Funciona 100% gratis con **Vercel + Supabase + cron-job.org**, sin tener tu PC e
 | Menciones | `everyone`, `here`, `none`, @usuarios, @roles, `group:Nombre` (combinables) |
 | Grupos de menciones | Ej. grupo **Staff** = @Ana @Pedro @Moderadores |
 | Hora local automática | Cada usuario ve las fechas en su propia zona horaria |
-| Cronograma | `/schedule` muestra eventos y alarmas agrupados por día; se puede publicar para todos |
+| Cronograma | `/schedule` muestra eventos y alarmas agrupados por día, con hora **UTC** y hora local; se puede publicar para todos |
+| Cronograma fijado | Un mensaje para fijar en un canal que el bot edita solo cuando algo cambia |
 | Resumen diario | Cada día a la hora elegida publica el cronograma del día |
 | 4 idiomas | Comandos y respuestas en el idioma de Discord de cada persona (inglés, español, italiano, alemán) |
 | Variables | `{event}`, `{start}`, `{time_left}`, `{description}` y `\n` para saltos de línea |
@@ -119,7 +123,7 @@ Copia el ID de tu servidor: en Discord, **Ajustes de usuario → Avanzado → Mo
 https://TU-PROYECTO.vercel.app/api/register?key=TU_TICK_SECRET&guild=ID_DEL_SERVIDOR
 ```
 
-Debe responder `✅ 8 comandos registrados en tu servidor`. Sin `&guild=...` se registran en todos los servidores, pero pueden tardar hasta una hora en aparecer.
+Debe responder `✅ 14 comandos registrados en tu servidor`. Sin `&guild=...` se registran en todos los servidores, pero pueden tardar hasta una hora en aparecer.
 
 Repite este paso cada vez que cambies `lib/commands.js` (al actualizar el bot) y una vez por cada servidor nuevo.
 
@@ -133,7 +137,11 @@ Repite este paso cada vez que cambies `lib/commands.js` (al actualizar el bot) y
 
 Para comprobarlo, abre esa URL en el navegador: debe responder `{"ok":true,"sent":0,...}`.
 
-### 8. Probar
+### 8. Configurar con el asistente
+
+En Discord escribe `/setup`: te guía con botones por la zona horaria, el rol organizador, el canal de avisos, el cronograma fijado, el resumen diario y los tipos de evento. Después publica el panel de botones con `/panel` en el canal de organizadores y fíjalo.
+
+### 9. Probar a mano (opcional)
 
 ```
 /config timezone value: UTC
@@ -156,9 +164,40 @@ Para comprobarlo, abre esa URL en el navegador: debe responder `{"ok":true,"sent
 
 Escribe las fechas y horas en la **zona del servidor** (`/now` la muestra). Todos ven las fechas convertidas a su propia hora.
 
+### 🦁 Lo más fácil: panel de botones
+`/panel` publica un mensaje con botones (**➕ Plan**, **⏭️ Skip day**, **📅 Schedule**, **🧩 Event types** y **⏰ Remind me**, para que cualquiera pida un recordatorio personal sin comandos). Los organizadores programan, saltan días y crean tipos de evento eligiendo de listas y llenando formularios, sin escribir comandos. Cualquiera puede usar **📅 Schedule**. Cada formulario sale en el idioma de quien lo usa.
+
+- **Quién ve qué:** los miembros solo ven `/schedule`, `/remind`, `/now` y `/help`. El resto de comandos solo los ve quien puede "Gestionar servidor"; para mostrárselos al rol organizador: **Ajustes del servidor → Integraciones → Kon Planner**.
+- **Confirmación:** borrar un tipo de evento, un evento o una alarma, o detener una repetición, pide confirmar con un botón.
+- **Patrones con un clic:** cuando el bot detecta cada cuánto se repite un evento, muestra un botón **🔁 Automatizar**.
+
+### ⚡ Forma rápida: plantillas
+Guarda cada tipo de evento **una vez** con sus avisos, y prográmalo con **un solo comando**.
+
+| Comando | Ejemplo |
+|---|---|
+| `/template create` | `name: Monkey Rallies` (avisos por defecto: `15m none, 0 everyone`) · `name: Doomsday reminders: 30m here, 15m none, 0 everyone channel: #alertas` |
+| `/plan` | `template: Monkey Rallies date: 2026-10-29 times: 03:00 18:00` crea los dos horarios con sus avisos |
+| `/plan` sin hora | `template: Register date: 2026-11-20 every: 7 alarm: 12:00` (sin `times`): ese día aparece con 📌; `alarm` opcional. Cuando el juego confirme la hora: `/plan template: Register date: 2026-11-20 times: 16:00` lo convierte en horario con sus avisos |
+| `/plan` repetitivo | `template: Trap date: 2026-10-28 times: 16:00 every: 2` (también `repeat: Weekly`, `days`, `until`) |
+| `/template info` | `name: Trap` historial y **cada cuánto se repite**, con el comando sugerido para automatizarlo |
+| `/template list` · `/template delete` | Ver o borrar tipos de evento |
+| `/plans list` · `/plans stop` | Ver o detener las repeticiones (`id: 1`) |
+| `/plans skip` | `template: Trap date: 2026-11-05` salta ese día (o solo `times: 18:00`); las repeticiones no lo vuelven a crear |
+
+- Los avisos de las plantillas no aparecen en el cronograma (ahí ya se ve el evento), así cada evento sale **una sola vez**.
+- Cuando sale el aviso de la hora, el bot **borra el aviso previo** (ej. el de 15 minutos antes) para que el canal quede limpio.
+- Los horarios de plantilla que ya pasaron se borran solos a los 2 días; el historial se conserva para detectar patrones.
+- Plantillas con `dm: Yes`: sus avisos van por mensaje privado a las personas o al grupo que mencionan.
+- Si al usar un comando falta algo en la base de datos, el bot lo dice ("La base de datos necesita actualizarse"): pega el `schema.sql` completo en Supabase.
+- Editar una plantilla (`/template create` con el mismo nombre) actualiza también sus horarios ya programados.
+- Al crear una plantilla, los eventos que ya existían con ese nombre (ej. "Trap Wed 16UTC") se agregan a su historial.
+- Si al programar el bot ve un patrón, lo sugiere en la respuesta (💡). Nunca automatiza nada sin que lo pidas.
+
 ### Para todos
 | Comando | Uso |
 |---|---|
+| `/remind me` | Recordatorio personal por mensaje privado: `text: Se acaba el escudo in: 8h` (o `at: 18:00`, `where: This channel`). `/remind list` y `/remind cancel` para ver y borrar los tuyos |
 | `/schedule` | Cronograma por día: eventos y alarmas (`days: 14` para más días) |
 | `/agenda` | Próximas alarmas (`days: 14` para más días) |
 | `/event list` · `/event view` | Eventos y sus alarmas |
@@ -172,7 +211,7 @@ Escribe las fechas y horas en la **zona del servidor** (`/now` la muestra). Todo
 | `/event edit` | `event: Torneo time: 21:00` (las alarmas relativas se mueven solas) |
 | `/event delete` | `event: Torneo` borra el evento y sus alarmas |
 
-Fechas aceptadas: `2026-10-25` o `25/10/2026` (mismo día), `25-10-26`, y `today`/`tomorrow` en los 4 idiomas (`hoy`, `mañana`, `oggi`, `domani`, `heute`, `morgen`…). Horas en formato 24 h: `20:30`, `9:05`, `20h`.
+Fechas aceptadas: `2026-10-25` o `25/10/2026` (mismo día), `25-10-26`, `today`/`tomorrow`, días de la semana (`wednesday`, `miércoles`, `mercoledì`, `Mittwoch`, también abreviados: `wed`, `mié`…: el próximo, u hoy si hoy es ese día) y `+3` (dentro de 3 días). Horas en formato 24 h: `20:30`, `9:05`, `20h`.
 
 ### Alarmas
 | Comando | Ejemplo |
@@ -192,6 +231,7 @@ Fechas aceptadas: `2026-10-25` o `25/10/2026` (mismo día), `25-10-26`, y `today
 - **every**: cada cuántos días se repite (`every: 2` = un día sí, uno no). Con `repeat: Weekly` o `Monthly`, cada cuántas semanas o meses.
 - **days**: días seguidos por ciclo, junto con **every**. `every: 19 days: 7` = 7 días seguidos y 12 de descanso.
 - **until**: último día en que se repite (`never` / `nunca` para quitarlo).
+- **dm**: `Yes` envía la alarma por mensaje privado a cada persona mencionada o del grupo, sin publicarla en el canal (quien tenga cerrados los mensajes directos es mencionado en el canal). No sirve con roles ni `everyone`.
 - **schedule**: `No` oculta la alarma de `/schedule` y del resumen diario (sigue sonando). Útil para un recordatorio de 5 minutos antes.
 - En `id`, escribe el nombre del evento y Discord sugiere sus alarmas.
 - Si no indicas canal, se usa el canal por defecto o el canal donde escribiste el comando.
@@ -221,8 +261,10 @@ Se pueden combinar: `here group:Staff @Pedro`.
 | `/config timezone` | Zona horaria en la que se escriben las fechas (por defecto `America/Santiago`) |
 | `/config admin-role` | Rol que puede crear y editar |
 | `/config default-channel` | Canal por defecto de las alarmas |
-| `/config daily-summary` | `channel: #anuncios time: 09:00 mentions: @Jugadores` publica cada día el cronograma del día (`mentions` opcional; los días sin eventos no publica nada) |
+| `/config daily-summary` | `channel: #anuncios time: 09:00 mentions: @Jugadores` publica cada día el cronograma del día (`mentions` opcional; los días sin eventos publica 💤 No events, sin mencionar a nadie) |
 | `/config daily-summary-off` | Desactiva el resumen diario |
+| `/config live-schedule` | `channel: #schedule` publica un cronograma de 7 días que se actualiza solo; **fíjalo** en el canal |
+| `/config live-schedule-off` | Deja de actualizar el cronograma fijado |
 | `/schedule public: Yes` | Publica el cronograma en el canal para todos (organizadores) |
 
 Las respuestas del bot a comandos son privadas (solo las ve quien escribió el comando) y nunca notifican a nadie.
@@ -240,6 +282,11 @@ lib/commands.js       Definición de los comandos "/" (con traducciones)
 lib/i18n.js           Textos del bot en inglés, español, italiano y alemán
 lib/tick.js           Envío, repeticiones, reintentos y resumen diario
 lib/schedule.js       Arma el cronograma por día
+lib/templates.js      Plantillas: crea horarios, repeticiones automáticas y limpieza
+lib/patterns.js       Detecta cada cuánto se repite un evento
+lib/live.js           Cronograma fijado que se actualiza solo
+lib/ui.js             Botones, menús y formularios: panel, asistente /setup, confirmaciones
+lib/reminders.js      Recordatorios personales (/remind)
 lib/time.js           Fechas, zonas horarias, "before" y repeticiones
 lib/mentions.js       Interpretación de menciones
 lib/render.js         Formato del mensaje de alarma y variables
@@ -259,7 +306,9 @@ schema.sql            Tablas de la base de datos (y "alter table" para actualiza
 - Si Discord falla, se reintenta hasta 3 veces (un intento por minuto). Si el canal no existe o el bot no tiene permisos, queda marcada como **falló**; arréglala con `/alarm edit` (por ejemplo cambiando el canal).
 - Si una alarma única lleva más de 6 horas atrasada (por ejemplo, porque el reloj estuvo caído), no se envía y queda como **no enviada**. Las repetitivas saltan a la siguiente fecha.
 - Las repeticiones respetan la hora local de la zona del servidor, incluidos los cambios de horario.
-- El resumen diario se envía una sola vez por día; si el reloj estuvo caído más de 3 horas después de la hora elegida, ese día se omite.
+- Las horas en el cronograma se muestran en **UTC** y, entre paréntesis, en la hora local de cada persona. Los días van escritos en inglés (ej. *Thursday 29/10*) para que no cambien de fecha según la zona de quien mira.
+- Los recordatorios personales llegan por mensaje privado; si la persona tiene cerrados los mensajes directos del servidor, el bot la menciona en el canal donde lo pidió. Máximo 25 pendientes por persona y 30 días hacia adelante.
+- El resumen diario se envía una sola vez por día; si falla (ej. el bot no tiene permiso en el canal) reintenta cada minuto hasta 3 horas; si el reloj estuvo caído más de 3 horas después de la hora elegida, ese día se omite.
 
 **Límites por servidor:** 100 eventos, 300 alarmas activas y 50 grupos (ajustables en `lib/handlers.js`).
 
@@ -277,5 +326,4 @@ schema.sql            Tablas de la base de datos (y "alter table" para actualiza
 
 - Cumpleaños con la zona horaria de cada persona.
 - Botones de asistencia (✅ Voy / ❔ Tal vez / ❌ No voy) y mención solo a quienes confirmaron.
-- Duplicar eventos como plantilla.
 - Creación automática del evento nativo de Discord.
